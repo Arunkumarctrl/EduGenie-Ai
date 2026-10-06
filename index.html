@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduGenie - AI Learning Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Welcome to EduGenie</h1>
+      <p>Your personal AI tutor for learning support.</p>
+    </header>
+
+    <section class="card">
+      <h2>Ask EduGenie a Question</h2>
+      <form id="qaForm">
+        <input id="question" placeholder="Why is the sky blue?" required>
+        <button>Get Answer</button>
+      </form>
+      <div id="qaResult" class="output"></div>
+    </section>
+
+    <section class="card">
+      <h2>Need an Explanation?</h2>
+      <form id="explainForm">
+        <input id="topic" placeholder="Photosynthesis" required>
+        <button>Explain</button>
+      </form>
+      <div id="explanationResult" class="output"></div>
+    </section>
+
+    <section class="card">
+      <h2>Summarize a Paragraph</h2>
+      <textarea id="summaryText" placeholder="Paste long content to summarize" required></textarea>
+      <button id="summaryBtn">Summarize</button>
+      <div id="summaryResult" class="output"></div>
+    </section>
+
+    <section class="card">
+      <h2>Generate a Quiz</h2>
+      <input id="quizText" placeholder="Pythagoras theorem" required>
+      <button id="quizBtn">Generate Quiz</button>
+      <div id="quizResult" class="output"></div>
+    </section>
+
+    <section class="card">
+      <h2>Get Learning Recommendations</h2>
+      <input id="learnTopic" placeholder="e.g. Linear Regression" required>
+      <button id="learnBtn">Get Recommendations</button>
+      <div id="learnResult" class="output"></div>
+    </section>
+  </main>
+
+<script>
+const $ = id => document.getElementById(id);
+const show = (id, value) => $(id).innerHTML = value;
+
+$("qaForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  show("qaResult", "Thinking...");
+  const q = encodeURIComponent($("question").value);
+  const r = await fetch(`/qa?question=${q}`);
+  const d = await r.json();
+  show("qaResult", d.answer || d.error);
+});
+
+$("explainForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  show("explanationResult", "Generating explanation...");
+  const r = await fetch("/explain", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({topic:$("topic").value})
+  });
+  const d = await r.json();
+  show("explanationResult", d.explanation || d.error);
+});
+
+$("summaryBtn").onclick = async () => {
+  show("summaryResult", "Summarizing...");
+  const r = await fetch("/summarize", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text:$("summaryText").value})
+  });
+  const d = await r.json();
+  show("summaryResult", d.summary || d.error);
+};
+
+$("quizBtn").onclick = async () => {
+  show("quizResult", "Generating quiz...");
+  const r = await fetch("/quiz", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text:$("quizText").value})
+  });
+  const d = await r.json();
+  if (d.error) return show("quizResult", d.error);
+  let html = "";
+  d.quiz.forEach((q, i) => {
+    html += `<div class="quiz"><b>Q${i+1}: ${q.question}</b>`;
+    q.options.forEach(o => html += `<label><input type="radio" name="q${i}" value="${o}"> ${o}</label>`);
+    html += `<button type="button" onclick="checkQuiz(${i}, '${encodeURIComponent(q.answer)}')">Check Answer</button></div>`;
+  });
+  show("quizResult", html);
+};
+
+window.checkQuiz = (i, answer) => {
+  const selected = document.querySelector(`input[name="q${i}"]:checked`);
+  if (!selected) return alert("Select an option first.");
+  const correct = decodeURIComponent(answer);
+  alert(selected.value === correct ? "Correct!" : `Incorrect. Correct answer: ${correct}`);
+};
+
+$("learnBtn").onclick = async () => {
+  show("learnResult", "Building learning path...");
+  const topic = encodeURIComponent($("learnTopic").value);
+  const r = await fetch(`/learn/recommendations?topic=${topic}`);
+  const d = await r.json();
+  show("learnResult", (d.recommendation || d.error).replace(/\n/g, "<br>"));
+};
+</script>
+</body>
+</html>
